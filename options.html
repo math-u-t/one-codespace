@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>One Codespace 設定</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      background-color: var(--surface-color);
+    }
+
+    .settings-container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: var(--spacing-lg);
+    }
+
+    .settings-card {
+      background-color: var(--background-color);
+      border-radius: var(--border-radius-lg);
+      box-shadow: var(--shadow-2);
+      padding: var(--spacing-xl);
+      margin-bottom: var(--spacing-lg);
+    }
+
+    .settings-section {
+      margin-bottom: var(--spacing-xl);
+    }
+
+    .settings-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      font-size: var(--font-size-lg);
+      font-weight: 500;
+      margin-bottom: var(--spacing-md);
+      color: var(--primary-color);
+    }
+
+    .section-description {
+      color: var(--text-secondary);
+      font-size: var(--font-size-sm);
+      margin-bottom: var(--spacing-md);
+    }
+
+    .token-input-container {
+      position: relative;
+    }
+
+    .token-input {
+      padding-right: 48px;
+    }
+
+    .token-toggle {
+      position: absolute;
+      right: var(--spacing-sm);
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-secondary);
+      padding: var(--spacing-xs);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .token-toggle:hover {
+      color: var(--primary-color);
+    }
+
+    .token-status {
+      margin-top: var(--spacing-sm);
+      padding: var(--spacing-sm) var(--spacing-md);
+      border-radius: var(--border-radius-md);
+      font-size: var(--font-size-sm);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+
+    .token-status.valid {
+      background-color: rgba(76, 175, 80, 0.1);
+      color: var(--accent-color);
+    }
+
+    .token-status.invalid {
+      background-color: rgba(244, 67, 54, 0.1);
+      color: var(--error-color);
+    }
+
+    .slider-container {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      margin-top: var(--spacing-sm);
+    }
+
+    .slider-input {
+      flex: 1;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--divider-color);
+      outline: none;
+      -webkit-appearance: none;
+    }
+
+    .slider-input::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--primary-color);
+      cursor: pointer;
+    }
+
+    .slider-input::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--primary-color);
+      cursor: pointer;
+      border: none;
+    }
+
+    .slider-value {
+      min-width: 60px;
+      text-align: right;
+      font-weight: 500;
+      color: var(--primary-color);
+    }
+
+    .chips-input-container {
+      margin-top: var(--spacing-sm);
+    }
+
+    .chips-display {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--spacing-sm);
+      margin-bottom: var(--spacing-sm);
+      min-height: 32px;
+    }
+
+    .add-chip-container {
+      display: flex;
+      gap: var(--spacing-sm);
+    }
+
+    .add-chip-input {
+      flex: 1;
+    }
+
+    .save-button-container {
+      display: flex;
+      justify-content: flex-end;
+      gap: var(--spacing-md);
+      margin-top: var(--spacing-xl);
+    }
+
+    .import-export-container {
+      display: flex;
+      gap: var(--spacing-md);
+      margin-top: var(--spacing-md);
+    }
+
+    .file-input {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="settings-container">
+    <!-- ヘッダー -->
+    <div class="header">
+      <h1>
+        <span class="material-icons">settings</span>
+        One Codespace 設定
+      </h1>
+    </div>
+
+    <!-- GitHub トークン設定 -->
+    <div class="settings-card">
+      <div class="settings-section">
+        <div class="section-title">
+          <span class="material-icons">vpn_key</span>
+          GitHub Personal Access Token
+        </div>
+        <div class="section-description">
+          GitHub API にアクセスするための Personal Access Token を入力してください。
+          トークンには <code>codespace</code> スコープが必要です。
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="githubToken">Personal Access Token</label>
+          <div class="token-input-container">
+            <input
+              type="password"
+              id="githubToken"
+              class="form-input token-input"
+              placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            >
+            <button type="button" class="token-toggle" id="toggleTokenVisibility">
+              <span class="material-icons">visibility</span>
+            </button>
+          </div>
+          <div id="tokenStatus" class="token-status hidden"></div>
+        </div>
+
+        <button class="btn btn-primary btn-small" id="validateTokenBtn">
+          <span class="material-icons md-18">check_circle</span>
+          トークンを検証
+        </button>
+      </div>
+    </div>
+
+    <!-- 自動停止設定 -->
+    <div class="settings-card">
+      <div class="settings-section">
+        <div class="section-title">
+          <span class="material-icons">power_settings_new</span>
+          自動停止設定
+        </div>
+        <div class="section-description">
+          Codespace の自動停止に関する設定を行います。
+        </div>
+
+        <!-- 自動停止の有効/無効 -->
+        <div class="switch-container">
+          <div>
+            <div class="form-label">自動停止を有効にする</div>
+            <div class="text-muted" style="font-size: var(--font-size-sm);">
+              非アクティブな Codespace を自動的に停止します
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="autoStopEnabled">
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <!-- 最大 Codespace 数 -->
+        <div class="form-group">
+          <label class="form-label" for="maxCodespaces">最大同時起動 Codespace 数</label>
+          <div class="slider-container">
+            <input
+              type="range"
+              id="maxCodespaces"
+              class="slider-input"
+              min="1"
+              max="10"
+              value="1"
+            >
+            <span class="slider-value" id="maxCodespacesValue">1</span>
+          </div>
+          <div class="text-muted" style="font-size: var(--font-size-sm); margin-top: var(--spacing-xs);">
+            この数を超えると、最も古い Codespace が自動停止されます
+          </div>
+        </div>
+
+        <!-- 自動停止までの時間 -->
+        <div class="form-group">
+          <label class="form-label" for="autoStopMinutes">自動停止までの時間（分）</label>
+          <div class="slider-container">
+            <input
+              type="range"
+              id="autoStopMinutes"
+              class="slider-input"
+              min="5"
+              max="120"
+              step="5"
+              value="30"
+            >
+            <span class="slider-value" id="autoStopMinutesValue">30 分</span>
+          </div>
+          <div class="text-muted" style="font-size: var(--font-size-sm); margin-top: var(--spacing-xs);">
+            この時間非アクティブな Codespace が自動停止されます
+          </div>
+        </div>
+
+        <!-- 除外リポジトリ -->
+        <div class="form-group">
+          <label class="form-label" for="excludedRepos">除外リポジトリ</label>
+          <div class="text-muted" style="font-size: var(--font-size-sm); margin-bottom: var(--spacing-sm);">
+            自動停止の対象外とするリポジトリを指定します（例: owner/repo）
+          </div>
+          <div class="chips-input-container">
+            <div class="chips-display" id="chipsDisplay"></div>
+            <div class="add-chip-container">
+              <input
+                type="text"
+                id="repoInput"
+                class="form-input add-chip-input"
+                placeholder="owner/repository"
+              >
+              <button class="btn btn-primary btn-small" id="addRepoBtn">
+                <span class="material-icons md-18">add</span>
+                追加
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 表示設定 -->
+    <div class="settings-card">
+      <div class="settings-section">
+        <div class="section-title">
+          <span class="material-icons">palette</span>
+          表示設定
+        </div>
+
+        <!-- ダークモード -->
+        <div class="switch-container">
+          <div>
+            <div class="form-label">ダークモード</div>
+            <div class="text-muted" style="font-size: var(--font-size-sm);">
+              ダークテーマを使用します
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="darkMode">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- インポート/エクスポート -->
+    <div class="settings-card">
+      <div class="settings-section">
+        <div class="section-title">
+          <span class="material-icons">import_export</span>
+          設定のインポート/エクスポート
+        </div>
+        <div class="section-description">
+          設定をファイルとして保存したり、読み込んだりできます。
+          （GitHub トークンは含まれません）
+        </div>
+
+        <div class="import-export-container">
+          <button class="btn btn-primary btn-small" id="exportBtn">
+            <span class="material-icons md-18">download</span>
+            エクスポート
+          </button>
+          <button class="btn btn-primary btn-small" id="importBtn">
+            <span class="material-icons md-18">upload</span>
+            インポート
+          </button>
+          <input type="file" id="importFile" class="file-input" accept=".json">
+        </div>
+      </div>
+    </div>
+
+    <!-- 保存ボタン -->
+    <div class="save-button-container">
+      <button class="btn btn-primary" id="saveBtn">
+        <span class="material-icons md-18">save</span>
+        保存
+      </button>
+    </div>
+  </div>
+
+  <script src="api.js"></script>
+  <script src="storage.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>
