@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>One Codespace</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      min-width: 400px;
+      max-width: 600px;
+      margin: 0;
+      padding: 0;
+    }
+
+    .popup-container {
+      width: 100%;
+    }
+
+    .codespace-list {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .codespace-item {
+      display: flex;
+      align-items: center;
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--divider-color);
+      transition: background-color var(--transition-fast);
+    }
+
+    .codespace-item:hover {
+      background-color: var(--surface-color);
+    }
+
+    .codespace-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .codespace-name {
+      font-weight: 500;
+      font-size: var(--font-size-md);
+      margin-bottom: var(--spacing-xs);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+
+    .codespace-repo {
+      color: var(--text-secondary);
+      font-size: var(--font-size-sm);
+      margin-bottom: var(--spacing-xs);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .codespace-meta {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      font-size: var(--font-size-sm);
+    }
+
+    .codespace-uptime {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      color: var(--text-secondary);
+    }
+
+    .codespace-actions {
+      margin-left: var(--spacing-md);
+    }
+
+    .footer {
+      padding: var(--spacing-md);
+      background-color: var(--surface-color);
+      border-top: 1px solid var(--divider-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .connection-status {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      font-size: var(--font-size-sm);
+      color: var(--text-secondary);
+    }
+
+    .status-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--accent-color);
+    }
+
+    .status-indicator.error {
+      background-color: var(--error-color);
+    }
+
+    .loading-overlay {
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(255, 255, 255, 0.9);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .loading-overlay.active {
+      display: flex;
+    }
+  </style>
+</head>
+<body>
+  <div class="popup-container">
+    <!-- ヘッダー -->
+    <div class="header">
+      <h1>
+        <span class="material-icons">storage</span>
+        One Codespace
+      </h1>
+      <div class="header-actions">
+        <button class="btn btn-icon" id="refreshBtn" title="更新">
+          <span class="material-icons">refresh</span>
+        </button>
+        <button class="btn btn-icon" id="settingsBtn" title="設定">
+          <span class="material-icons">settings</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Codespace リスト -->
+    <div class="codespace-list" id="codespaceList">
+      <!-- ローディング状態 -->
+      <div id="loadingState" class="empty-state">
+        <div class="spinner"></div>
+        <p>Codespace を読み込み中...</p>
+      </div>
+
+      <!-- エラー状態 -->
+      <div id="errorState" class="empty-state hidden">
+        <span class="material-icons">error_outline</span>
+        <p id="errorMessage">エラーが発生しました</p>
+        <button class="btn btn-primary btn-small" id="retryBtn">再試行</button>
+      </div>
+
+      <!-- 空の状態 -->
+      <div id="emptyState" class="empty-state hidden">
+        <span class="material-icons">cloud_off</span>
+        <p>アクティブな Codespace がありません</p>
+      </div>
+
+      <!-- Codespace アイテム（JavaScriptで動的に生成） -->
+    </div>
+
+    <!-- フッター -->
+    <div class="footer">
+      <div class="connection-status">
+        <div class="status-indicator" id="statusIndicator"></div>
+        <span id="statusText">接続中...</span>
+      </div>
+      <div>
+        <span class="text-muted" id="codespaceCount">0 個の Codespace</span>
+      </div>
+    </div>
+
+    <!-- ローディングオーバーレイ -->
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+  </div>
+
+  <script src="api.js"></script>
+  <script src="storage.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
