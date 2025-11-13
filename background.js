@@ -3,21 +3,262 @@
  * Service Worker として動作し、Codespace の監視と自動管理を実行
  */
 
-// storage.js から必要な関数をインポート
-import {
-  getSettings,
-  getCodespaceLastAccess,
-  updateCodespaceLastAccess,
-  removeCodespaceAccess
-} from './storage.js';
+// ==================== Storage Module ====================
+// デフォルト設定
+const DEFAULT_SETTINGS = {
+  githubToken: '',
+  autoStopEnabled: true,
+  maxCodespaces: 1,
+  autoStopMinutes: 30,
+  excludedRepos: [],
+  darkMode: false,
+  language: 'ja' // 'ja' or 'en'
+};
 
-// api.js から必要な関数をインポート
-import {
-  getAllCodespaces,
-  getActiveCodespaces,
-  stopCodespace,
-  filterCodespacesByRepo
-} from './api.js';
+/**
+ * 設定を取得
+ * @returns {Promise<Object>} 設定オブジェクト
+ */
+async function getSettings() {
+  try {
+    const result = await chrome.storage.local.get('settings');
+    return { ...DEFAULT_SETTINGS, ...result.settings };
+  } catch (error) {
+    console.error('設定の取得に失敗しました:', error);
+    return DEFAULT_SETTINGS;
+  }
+}
+
+/**
+ * Codespace の最終アクセス時刻を取得
+ * @param {string} codespaceName - Codespace名
+ * @returns {Promise<number>} タイムスタンプ（ミリ秒）
+ */
+async function getCodespaceLastAccess(codespaceName) {
+  try {
+    const key = `codespace_access_${codespaceName}`;
+    const result = await chrome.storage.local.get(key);
+    return result[key] || Date.now();
+  } catch (error) {
+    console.error('最終アクセス時刻の取得に失敗しました:', error);
+    return Date.now();
+  }
+}
+
+/**
+ * Codespace の最終アクセス時刻を更新
+ * @param {string} codespaceName - Codespace名
+ * @param {number} timestamp - タイムスタンプ（ミリ秒）
+ * @returns {Promise<boolean>} 成功した場合true
+ */
+async function updateCodespaceLastAccess(codespaceName, timestamp = Date.now()) {
+  try {
+    const key = `codespace_access_${codespaceName}`;
+    await chrome.storage.local.set({ [key]: timestamp });
+    return true;
+  } catch (error) {
+    console.error('最終アクセス時刻の更新に失敗しました:', error);
+    return false;
+  }
+}
+
+/**
+ * Codespace の最終アクセス時刻を削除
+ * @param {string} codespaceName - Codespace名
+ * @returns {Promise<boolean>} 成功した場合true
+ */
+async function removeCodespaceAccess(codespaceName) {
+  try {
+    const key = `codespace_access_${codespaceName}`;
+    await chrome.storage.local.remove(key);
+    return true;
+  } catch (error) {
+    console.error('最終アクセス時刻の削除に失敗しました:', error);
+    return false;
+  }
+}
+
+// ==================== API Module ====================
+const GITHUB_API_BASE_URL = 'https://api.github.com';
+const MAX_RETRY_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 1000;
+
+/**
+ * API リクエストのエラークラス
+ */
+class APIError extends Error {
+  constructor(message, status, response) {
+    super(message);
+    this.name = 'APIError';
+    this.status = status;
+    this.response = response;
+  }
+}
+
+/**
+ * スリープ
+ * @param {number} ms - ミリ秒
+ * @returns {Promise<void>}
+ */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * 指数バックオフでリトライを実行
+ * @param {Function} fn - 実行する関数
+ * @param {number} maxAttempts - 最大試行回数
+ * @returns {Promise<any>} 関数の戻り値
+ */
+async function retryWithBackoff(fn, maxAttempts = MAX_RETRY_ATTEMPTS) {
+  let lastError;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+
+      // レート制限エラーの場合は特別な処理
+      if (error.status === 429) {
+        const retryAfter = error.response?.headers?.get('Retry-After');
+        const delay = retryAfter ? parseInt(retryAfter) * 1000 : RETRY_DELAY_MS * Math.pow(2, attempt);
+        console.warn(`レート制限に達しました。${delay}ms 後にリトライします...`);
+        await sleep(delay);
+        continue;
+      }
+
+      // リトライ不可能なエラーの場合は即座に失敗
+      if (error.status === 401 || error.status === 403 || error.status === 404) {
+        throw error;
+      }
+
+      // その他のエラーは指数バックオフでリトライ
+      if (attempt < maxAttempts - 1) {
+        const delay = RETRY_DELAY_MS * Math.pow(2, attempt);
+        console.warn(`APIリクエストが失敗しました。${delay}ms 後にリトライします... (試行 ${attempt + 1}/${maxAttempts})`);
+        await sleep(delay);
+      }
+    }
+  }
+
+  throw lastError;
+}
+
+/**
+ * GitHub API にリクエストを送信
+ * @param {string} endpoint - APIエンドポイント
+ * @param {string} token - GitHub Personal Access Token
+ * @param {Object} options - fetchオプション
+ * @returns {Promise<Object>} レスポンスデータ
+ */
+async function makeAPIRequest(endpoint, token, options = {}) {
+  const url = `${GITHUB_API_BASE_URL}${endpoint}`;
+
+  const headers = {
+    'Accept': 'application/vnd.github+json',
+    'Authorization': `Bearer ${token}`,
+    'X-GitHub-Api-Version': '2022-11-28',
+    ...options.headers
+  };
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers
+    });
+
+    // レスポンスボディを取得
+    const responseData = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new APIError(
+        responseData.message || `APIリクエストが失敗しました: ${response.status}`,
+        response.status,
+        { headers: response.headers, data: responseData }
+      );
+    }
+
+    return responseData;
+  } catch (error) {
+    if (error instanceof APIError) {
+      throw error;
+    }
+    throw new APIError(
+      `ネットワークエラー: ${error.message}`,
+      0,
+      null
+    );
+  }
+}
+
+/**
+ * すべての Codespace を取得
+ * @param {string} token - GitHub Personal Access Token
+ * @returns {Promise<Array>} Codespace の配列
+ */
+async function getAllCodespaces(token) {
+  if (!token) {
+    throw new APIError('GitHub Personal Access Token が設定されていません', 401, null);
+  }
+
+  return retryWithBackoff(async () => {
+    const data = await makeAPIRequest('/user/codespaces', token);
+    return data.codespaces || [];
+  });
+}
+
+/**
+ * Codespace を停止
+ * @param {string} codespaceName - Codespace名
+ * @param {string} token - GitHub Personal Access Token
+ * @returns {Promise<Object>} 停止後の Codespace の詳細
+ */
+async function stopCodespace(codespaceName, token) {
+  if (!token) {
+    throw new APIError('GitHub Personal Access Token が設定されていません', 401, null);
+  }
+
+  return retryWithBackoff(async () => {
+    return await makeAPIRequest(
+      `/user/codespaces/${codespaceName}/stop`,
+      token,
+      { method: 'POST' }
+    );
+  });
+}
+
+/**
+ * アクティブな Codespace を取得
+ * @param {string} token - GitHub Personal Access Token
+ * @returns {Promise<Array>} アクティブな Codespace の配列
+ */
+async function getActiveCodespaces(token) {
+  const allCodespaces = await getAllCodespaces(token);
+  return allCodespaces.filter(cs => cs.state === 'Available');
+}
+
+/**
+ * リポジトリ名から Codespace をフィルタリング
+ * @param {Array} codespaces - Codespace の配列
+ * @param {Array} excludedRepos - 除外するリポジトリ名の配列
+ * @returns {Array} フィルタリングされた Codespace の配列
+ */
+function filterCodespacesByRepo(codespaces, excludedRepos) {
+  if (!excludedRepos || excludedRepos.length === 0) {
+    return codespaces;
+  }
+
+  return codespaces.filter(cs => {
+    const repoFullName = cs.repository?.full_name || '';
+    return !excludedRepos.some(excluded => {
+      // 完全一致または部分一致をサポート
+      return repoFullName === excluded || repoFullName.includes(excluded);
+    });
+  });
+}
+
+// ==================== Background Script ====================
 
 // 定期チェックの間隔（分）
 const CHECK_INTERVAL_MINUTES = 5;

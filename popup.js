@@ -3,17 +3,111 @@
  * Codespace の一覧表示と操作を管理
  */
 
-// storage.js から必要な関数をインポート
-import {
-  getSettings,
-  removeCodespaceAccess
-} from './storage.js';
+// ==================== Storage Functions ====================
+const DEFAULT_SETTINGS = {
+  githubToken: '',
+  autoStopEnabled: true,
+  maxCodespaces: 1,
+  autoStopMinutes: 30,
+  excludedRepos: [],
+  darkMode: false,
+  language: 'ja'
+};
 
-// api.js から必要な関数をインポート
-import {
-  getAllCodespaces,
-  stopCodespace
-} from './api.js';
+async function getSettings() {
+  try {
+    const result = await chrome.storage.local.get('settings');
+    return { ...DEFAULT_SETTINGS, ...result.settings };
+  } catch (error) {
+    console.error('設定の取得に失敗しました:', error);
+    return DEFAULT_SETTINGS;
+  }
+}
+
+async function removeCodespaceAccess(codespaceName) {
+  try {
+    const key = `codespace_access_${codespaceName}`;
+    await chrome.storage.local.remove(key);
+    return true;
+  } catch (error) {
+    console.error('最終アクセス時刻の削除に失敗しました:', error);
+    return false;
+  }
+}
+
+// ==================== API Functions ====================
+const GITHUB_API_BASE_URL = 'https://api.github.com';
+
+class APIError extends Error {
+  constructor(message, status, response) {
+    super(message);
+    this.name = 'APIError';
+    this.status = status;
+    this.response = response;
+  }
+}
+
+async function makeAPIRequest(endpoint, token, options = {}) {
+  const url = `${GITHUB_API_BASE_URL}${endpoint}`;
+
+  const headers = {
+    'Accept': 'application/vnd.github+json',
+    'Authorization': `Bearer ${token}`,
+    'X-GitHub-Api-Version': '2022-11-28',
+    ...options.headers
+  };
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers
+    });
+
+    const responseData = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new APIError(
+        responseData.message || `APIリクエストが失敗しました: ${response.status}`,
+        response.status,
+        { headers: response.headers, data: responseData }
+      );
+    }
+
+    return responseData;
+  } catch (error) {
+    if (error instanceof APIError) {
+      throw error;
+    }
+    throw new APIError(
+      `ネットワークエラー: ${error.message}`,
+      0,
+      null
+    );
+  }
+}
+
+async function getAllCodespaces(token) {
+  if (!token) {
+    throw new APIError('GitHub Personal Access Token が設定されていません', 401, null);
+  }
+
+  const data = await makeAPIRequest('/user/codespaces', token);
+  return data.codespaces || [];
+}
+
+async function stopCodespace(codespaceName, token) {
+  if (!token) {
+    throw new APIError('GitHub Personal Access Token が設定されていません', 401, null);
+  }
+
+  return await makeAPIRequest(
+    `/user/codespaces/${codespaceName}/stop`,
+    token,
+    { method: 'POST' }
+  );
+}
+
+// ==================== Popup UI Logic ====================
 
 let currentSettings = null;
 let codespaces = [];
