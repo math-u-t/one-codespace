@@ -3,18 +3,109 @@
  * ユーザー設定の管理とUI操作
  */
 
-// storage.js から必要な関数をインポート
-import {
-  getSettings,
-  saveSettings,
-  exportSettings,
-  importSettings
-} from './storage.js';
+// ==================== Storage Functions ====================
+const DEFAULT_SETTINGS = {
+  githubToken: '',
+  autoStopEnabled: true,
+  maxCodespaces: 1,
+  autoStopMinutes: 30,
+  excludedRepos: [],
+  darkMode: false,
+  language: 'ja'
+};
 
-// api.js から必要な関数をインポート
-import {
-  validateToken
-} from './api.js';
+async function getSettings() {
+  try {
+    const result = await chrome.storage.local.get('settings');
+    return { ...DEFAULT_SETTINGS, ...result.settings };
+  } catch (error) {
+    console.error('設定の取得に失敗しました:', error);
+    return DEFAULT_SETTINGS;
+  }
+}
+
+async function saveSettings(settings) {
+  try {
+    await chrome.storage.local.set({ settings });
+    return true;
+  } catch (error) {
+    console.error('設定の保存に失敗しました:', error);
+    return false;
+  }
+}
+
+async function exportSettings() {
+  try {
+    const settings = await getSettings();
+    const exportData = { ...settings };
+    delete exportData.githubToken;
+    return exportData;
+  } catch (error) {
+    console.error('設定のエクスポートに失敗しました:', error);
+    return {};
+  }
+}
+
+async function importSettings(settings) {
+  try {
+    const currentSettings = await getSettings();
+    const newSettings = {
+      ...currentSettings,
+      ...settings,
+      githubToken: currentSettings.githubToken
+    };
+    return await saveSettings(newSettings);
+  } catch (error) {
+    console.error('設定のインポートに失敗しました:', error);
+    return false;
+  }
+}
+
+// ==================== API Functions ====================
+const GITHUB_API_BASE_URL = 'https://api.github.com';
+
+async function validateToken(token) {
+  if (!token) {
+    return { valid: false, scopes: [], error: 'トークンが空です' };
+  }
+
+  try {
+    const response = await fetch(`${GITHUB_API_BASE_URL}/user`, {
+      headers: {
+        'Accept': 'application/vnd.github+json',
+        'Authorization': `Bearer ${token}`,
+        'X-GitHub-Api-Version': '2022-11-28'
+      }
+    });
+
+    if (!response.ok) {
+      return {
+        valid: false,
+        scopes: [],
+        error: response.status === 401 ? '認証に失敗しました' : `エラー: ${response.status}`
+      };
+    }
+
+    const scopesHeader = response.headers.get('X-OAuth-Scopes') || '';
+    const scopes = scopesHeader.split(',').map(s => s.trim()).filter(s => s);
+    const hasCodespaceScope = scopes.includes('codespace');
+
+    return {
+      valid: true,
+      scopes,
+      hasCodespaceScope,
+      error: hasCodespaceScope ? '' : 'codespace スコープが必要です'
+    };
+  } catch (error) {
+    return {
+      valid: false,
+      scopes: [],
+      error: `ネットワークエラー: ${error.message}`
+    };
+  }
+}
+
+// ==================== Options UI Logic ====================
 
 let currentSettings = null;
 let excludedRepos = [];
