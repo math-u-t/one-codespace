@@ -121,7 +121,7 @@ async function makeAPIRequest(endpoint, token, options = {}) {
  * @param {string} token - GitHub Personal Access Token
  * @returns {Promise<Array>} Codespace の配列
  */
-async function getAllCodespaces(token) {
+export async function getAllCodespaces(token) {
   if (!token) {
     throw new APIError('GitHub Personal Access Token が設定されていません', 401, null);
   }
@@ -138,7 +138,7 @@ async function getAllCodespaces(token) {
  * @param {string} token - GitHub Personal Access Token
  * @returns {Promise<Object>} Codespace の詳細
  */
-async function getCodespace(codespaceName, token) {
+export async function getCodespace(codespaceName, token) {
   if (!token) {
     throw new APIError('GitHub Personal Access Token が設定されていません', 401, null);
   }
@@ -154,7 +154,7 @@ async function getCodespace(codespaceName, token) {
  * @param {string} token - GitHub Personal Access Token
  * @returns {Promise<Object>} 停止後の Codespace の詳細
  */
-async function stopCodespace(codespaceName, token) {
+export async function stopCodespace(codespaceName, token) {
   if (!token) {
     throw new APIError('GitHub Personal Access Token が設定されていません', 401, null);
   }
@@ -173,7 +173,7 @@ async function stopCodespace(codespaceName, token) {
  * @param {string} token - GitHub Personal Access Token
  * @returns {Promise<Array>} アクティブな Codespace の配列
  */
-async function getActiveCodespaces(token) {
+export async function getActiveCodespaces(token) {
   const allCodespaces = await getAllCodespaces(token);
   return allCodespaces.filter(cs => cs.state === 'Available');
 }
@@ -184,7 +184,7 @@ async function getActiveCodespaces(token) {
  * @param {Array} excludedRepos - 除外するリポジトリ名の配列
  * @returns {Array} フィルタリングされた Codespace の配列
  */
-function filterCodespacesByRepo(codespaces, excludedRepos) {
+export function filterCodespacesByRepo(codespaces, excludedRepos) {
   if (!excludedRepos || excludedRepos.length === 0) {
     return codespaces;
   }
@@ -203,7 +203,7 @@ function filterCodespacesByRepo(codespaces, excludedRepos) {
  * @param {string} token - GitHub Personal Access Token
  * @returns {Promise<Object>} 検証結果 { valid: boolean, scopes: Array, error: string }
  */
-async function validateToken(token) {
+export async function validateToken(token) {
   if (!token) {
     return { valid: false, scopes: [], error: 'トークンが空です' };
   }

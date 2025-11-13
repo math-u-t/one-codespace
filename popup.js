@@ -3,6 +3,18 @@
  * Codespace の一覧表示と操作を管理
  */
 
+// storage.js から必要な関数をインポート
+import {
+  getSettings,
+  removeCodespaceAccess
+} from './storage.js';
+
+// api.js から必要な関数をインポート
+import {
+  getAllCodespaces,
+  stopCodespace
+} from './api.js';
+
 let currentSettings = null;
 let codespaces = [];
 

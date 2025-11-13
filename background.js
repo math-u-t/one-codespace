@@ -3,6 +3,22 @@
  * Service Worker として動作し、Codespace の監視と自動管理を実行
  */
 
+// storage.js から必要な関数をインポート
+import {
+  getSettings,
+  getCodespaceLastAccess,
+  updateCodespaceLastAccess,
+  removeCodespaceAccess
+} from './storage.js';
+
+// api.js から必要な関数をインポート
+import {
+  getAllCodespaces,
+  getActiveCodespaces,
+  stopCodespace,
+  filterCodespacesByRepo
+} from './api.js';
+
 // 定期チェックの間隔（分）
 const CHECK_INTERVAL_MINUTES = 5;
 const ALARM_NAME = 'codespaceCheck';
