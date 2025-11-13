@@ -3,6 +3,19 @@
  * ユーザー設定の管理とUI操作
  */
 
+// storage.js から必要な関数をインポート
+import {
+  getSettings,
+  saveSettings,
+  exportSettings,
+  importSettings
+} from './storage.js';
+
+// api.js から必要な関数をインポート
+import {
+  validateToken
+} from './api.js';
+
 let currentSettings = null;
 let excludedRepos = [];
 

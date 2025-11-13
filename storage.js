@@ -18,7 +18,7 @@ const DEFAULT_SETTINGS = {
  * 設定を取得
  * @returns {Promise<Object>} 設定オブジェクト
  */
-async function getSettings() {
+export async function getSettings() {
   try {
     const result = await chrome.storage.local.get('settings');
     return { ...DEFAULT_SETTINGS, ...result.settings };
@@ -33,7 +33,7 @@ async function getSettings() {
  * @param {Object} settings - 保存する設定
  * @returns {Promise<boolean>} 成功した場合true
  */
-async function saveSettings(settings) {
+export async function saveSettings(settings) {
   try {
     await chrome.storage.local.set({ settings });
     return true;
@@ -47,7 +47,7 @@ async function saveSettings(settings) {
  * GitHub Personal Access Token を取得
  * @returns {Promise<string>} トークン
  */
-async function getGitHubToken() {
+export async function getGitHubToken() {
   try {
     const settings = await getSettings();
     return settings.githubToken || '';
@@ -62,7 +62,7 @@ async function getGitHubToken() {
  * @param {string} token - トークン
  * @returns {Promise<boolean>} 成功した場合true
  */
-async function saveGitHubToken(token) {
+export async function saveGitHubToken(token) {
   try {
     const settings = await getSettings();
     settings.githubToken = token;
@@ -78,7 +78,7 @@ async function saveGitHubToken(token) {
  * @param {string} codespaceName - Codespace名
  * @returns {Promise<number>} タイムスタンプ（ミリ秒）
  */
-async function getCodespaceLastAccess(codespaceName) {
+export async function getCodespaceLastAccess(codespaceName) {
   try {
     const key = `codespace_access_${codespaceName}`;
     const result = await chrome.storage.local.get(key);
@@ -95,7 +95,7 @@ async function getCodespaceLastAccess(codespaceName) {
  * @param {number} timestamp - タイムスタンプ（ミリ秒）
  * @returns {Promise<boolean>} 成功した場合true
  */
-async function updateCodespaceLastAccess(codespaceName, timestamp = Date.now()) {
+export async function updateCodespaceLastAccess(codespaceName, timestamp = Date.now()) {
   try {
     const key = `codespace_access_${codespaceName}`;
     await chrome.storage.local.set({ [key]: timestamp });
@@ -110,7 +110,7 @@ async function updateCodespaceLastAccess(codespaceName, timestamp = Date.now()) 
  * すべての Codespace の最終アクセス時刻を取得
  * @returns {Promise<Object>} キーがCodespace名、値がタイムスタンプのオブジェクト
  */
-async function getAllCodespaceAccess() {
+export async function getAllCodespaceAccess() {
   try {
     const allData = await chrome.storage.local.get(null);
     const accessData = {};
@@ -134,7 +134,7 @@ async function getAllCodespaceAccess() {
  * @param {string} codespaceName - Codespace名
  * @returns {Promise<boolean>} 成功した場合true
  */
-async function removeCodespaceAccess(codespaceName) {
+export async function removeCodespaceAccess(codespaceName) {
   try {
     const key = `codespace_access_${codespaceName}`;
     await chrome.storage.local.remove(key);
@@ -149,7 +149,7 @@ async function removeCodespaceAccess(codespaceName) {
  * 設定をエクスポート
  * @returns {Promise<Object>} エクスポートデータ
  */
-async function exportSettings() {
+export async function exportSettings() {
   try {
     const settings = await getSettings();
     // トークンは除外する（セキュリティのため）
@@ -167,7 +167,7 @@ async function exportSettings() {
  * @param {Object} settings - インポートする設定
  * @returns {Promise<boolean>} 成功した場合true
  */
-async function importSettings(settings) {
+export async function importSettings(settings) {
   try {
     const currentSettings = await getSettings();
     // トークンは保持する
@@ -187,7 +187,7 @@ async function importSettings(settings) {
  * すべてのデータをクリア（デバッグ用）
  * @returns {Promise<boolean>} 成功した場合true
  */
-async function clearAllData() {
+export async function clearAllData() {
   try {
     await chrome.storage.local.clear();
     return true;
